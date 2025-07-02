@@ -431,23 +431,24 @@ func buildFunctionMap(config *BuiltinConfig) map[string]*Function {
 				reflect.TypeOf((func(string, *net.Resolver) []string)(nil)),
 			},
 		},
-		"asn": {
-			InitFunc: nil,
-			PatchFunc: nil,
-			Func: func(params ...any) (any, error) {
-				// 这里假设 config.GEOASNMatcher.MatchASN(ip, asn) bool
-				ipStr, ok1 := params[0].(string)
-				asn, ok2 := params[1].(int)
-				if !ok1 || !ok2 {
-					return false, fmt.Errorf("asn: invalid argument types")
-				}
-				if config.GEOASNMatcher == nil {
-					return false, fmt.Errorf("asn: GEOASNMatcher is nil")
-				}
-				return config.GEOASNMatcher.MatchASN(ipStr, asn), nil
-			},
-			Types: []reflect.Type{},
-		},
+// TODO: Complete ASN Part
+//		"asn": {
+//			InitFunc: nil,
+//			PatchFunc: nil,
+//			Func: func(params ...any) (any, error) {
+//				// 这里假设 config.GEOASNMatcher.MatchASN(ip, asn) bool
+//				ipStr, ok1 := params[0].(string)
+//				asn, ok2 := params[1].(int)
+//				if !ok1 || !ok2 {
+//					return false, fmt.Errorf("asn: invalid argument types")
+//				}
+//				if config.GEOASNMatcher == nil {
+//					return false, fmt.Errorf("asn: GEOASNMatcher is nil")
+//				}
+//				return config.GEOASNMatcher.MatchASN(ipStr, asn), nil
+//			},
+//			Types: []reflect.Type{},
+//		},
 		"port_range": {
 			InitFunc: nil,
 			PatchFunc: nil,
