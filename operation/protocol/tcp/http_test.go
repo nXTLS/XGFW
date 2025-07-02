@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/v2TLS/XGFW/operation"
+	"github.com/nXTLS/XGFW/operation"
 )
 
 func TestHTTPParsing_Request(t *testing.T) {
