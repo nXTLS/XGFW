@@ -7,6 +7,7 @@ import (
 	"os"
 	"reflect"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/expr-lang/expr/builtin"
@@ -30,6 +31,7 @@ type ExprRule struct {
 	Log      bool          `yaml:"log"`
 	Modifier ModifierEntry `yaml:"modifier"`
 	Expr     string        `yaml:"expr"`
+	Enabled  *bool         `yaml:"enabled,omitempty"` // 新增规则开关，默认启用
 }
 
 type ModifierEntry struct {
@@ -54,6 +56,7 @@ type compiledExprRule struct {
 	Log         bool
 	ModInstance modifier.Instance
 	Program     *vm.Program
+	Enabled     bool
 }
 
 var _ Ruleset = (*exprRuleset)(nil)
@@ -64,16 +67,21 @@ type exprRuleset struct {
 	Logger Logger
 }
 
+// Analyzers returns analyzers used by the ruleset.
 func (r *exprRuleset) Analyzers(info StreamInfo) []analyzer.Analyzer {
 	return r.Ans
 }
 
+// MatchResult is returned for the first matching rule, or ActionMaybe if no match found.
 func (r *exprRuleset) Match(info StreamInfo) MatchResult {
 	env := streamInfoToExprEnv(info)
 	for _, rule := range r.Rules {
+		if !rule.Enabled {
+			continue
+		}
 		v, err := vm.Run(rule.Program, env)
 		if err != nil {
-			// Log the error and continue to the next rule.
+			// Log error and continue to next rule.
 			r.Logger.MatchError(info, rule.Name, err)
 			continue
 		}
@@ -104,8 +112,31 @@ func CompileExprRules(rules []ExprRule, ans []analyzer.Analyzer, mods []modifier
 	fullModMap := modifiersToMap(mods)
 	depAnMap := make(map[string]analyzer.Analyzer)
 	funcMap := buildFunctionMap(config)
-	// Compile all rules and build a map of analyzers that are used by the rules.
-	for _, rule := range rules {
+	nameSet := make(map[string]struct{}) // 检查规则名唯一性
+
+	for idx, rule := range rules {
+		// 规则名唯一性校验
+		if _, ok := nameSet[rule.Name]; ok {
+			return nil, fmt.Errorf("duplicate rule name: %q (at index %d)", rule.Name, idx)
+		}
+		nameSet[rule.Name] = struct{}{}
+
+		// 禁用字段，默认启用
+		enabled := true
+		if rule.Enabled != nil {
+			enabled = *rule.Enabled
+		}
+
+		if !enabled {
+			compiledRules = append(compiledRules, compiledExprRule{
+				Name:    rule.Name,
+				Action:  nil,
+				Log:     false,
+				Enabled: false,
+			})
+			continue
+		}
+
 		if rule.Action == "" && !rule.Log {
 			return nil, fmt.Errorf("rule %q must have at least one of action or log", rule.Name)
 		}
@@ -140,21 +171,18 @@ func CompileExprRules(rules []ExprRule, ans []analyzer.Analyzer, mods []modifier
 			return nil, fmt.Errorf("rule %q failed to patch expression: %w", rule.Name, patcher.Err)
 		}
 		for name := range visitor.Identifiers {
-			// Skip built-in analyzers & user-defined variables
 			if isBuiltInAnalyzer(name) || visitor.Variables[name] {
 				continue
 			}
 			if f, ok := funcMap[name]; ok {
-				// Built-in function, initialize if necessary
 				if f.InitFunc != nil {
 					if err := f.InitFunc(); err != nil {
 						return nil, fmt.Errorf("rule %q failed to initialize function %q: %w", rule.Name, name, err)
 					}
 				}
 			} else if a, ok := fullAnMap[name]; ok {
-				// Analyzer, add to dependency map
 				depAnMap[name] = a
-				if err:= analyzersInit(a); err != nil {
+				if err := analyzersInit(a); err != nil {
 					return nil, err
 				}
 			}
@@ -164,6 +192,7 @@ func CompileExprRules(rules []ExprRule, ans []analyzer.Analyzer, mods []modifier
 			Action:  action,
 			Log:     rule.Log,
 			Program: program,
+			Enabled: enabled,
 		}
 		if action != nil && *action == ActionModify {
 			mod, ok := fullModMap[rule.Modifier.Name]
@@ -190,6 +219,7 @@ func CompileExprRules(rules []ExprRule, ans []analyzer.Analyzer, mods []modifier
 	}, nil
 }
 
+// streamInfoToExprEnv builds the environment for expr VM.
 func streamInfoToExprEnv(info StreamInfo) map[string]interface{} {
 	m := map[string]interface{}{
 		"id":    info.ID,
@@ -222,7 +252,7 @@ func isBuiltInAnalyzer(name string) bool {
 }
 
 func actionStringToAction(action string) (Action, bool) {
-	switch strings.ToLower(action) {
+	switch strings.ToLower(strings.TrimSpace(action)) {
 	case "allow":
 		return ActionAllow, true
 	case "block":
@@ -237,30 +267,29 @@ func actionStringToAction(action string) (Action, bool) {
 }
 
 // analyzersToMap converts a list of analyzers to a map of name -> analyzer.
-// This is for easier lookup when compiling rules.
 func analyzersToMap(ans []analyzer.Analyzer) map[string]analyzer.Analyzer {
-	anMap := make(map[string]analyzer.Analyzer)
+	anMap := make(map[string]analyzer.Analyzer, len(ans))
 	for _, a := range ans {
 		anMap[a.Name()] = a
 	}
 	return anMap
 }
 
-// analyzersInit invokes custom analyzer init logics
+// analyzersInit invokes custom analyzer init logics.
+// 可扩展：后续可支持更多Analyzer类型的Init
 func analyzersInit(a analyzer.Analyzer) error {
 	switch impl := a.(type) {
 	case *tcp.TorAnalyzer:
 		if err := impl.Init(); err != nil {
 			return err
-		} 
+		}
 	}
 	return nil
 }
 
 // modifiersToMap converts a list of modifiers to a map of name -> modifier.
-// This is for easier lookup when compiling rules.
 func modifiersToMap(mods []modifier.Modifier) map[string]modifier.Modifier {
-	modMap := make(map[string]modifier.Modifier)
+	modMap := make(map[string]modifier.Modifier, len(mods))
 	for _, m := range mods {
 		modMap[m.Name()] = m
 	}
@@ -268,7 +297,6 @@ func modifiersToMap(mods []modifier.Modifier) map[string]modifier.Modifier {
 }
 
 // idVisitor is a visitor that collects all identifiers in an expression.
-// This is for determining which analyzers are used by the expression.
 type idVisitor struct {
 	Variables   map[string]bool
 	Identifiers map[string]bool
@@ -282,8 +310,7 @@ func (v *idVisitor) Visit(node *ast.Node) {
 	}
 }
 
-// idPatcher patches the AST during expr compilation, replacing certain values with
-// their internal representations for better runtime performance.
+// idPatcher patches the AST during expr compilation, replacing certain values with internal representations for better runtime performance.
 type idPatcher struct {
 	FuncMap map[string]*Function
 	Err     error
@@ -294,7 +321,6 @@ func (p *idPatcher) Visit(node *ast.Node) {
 	case *ast.CallNode:
 		callNode := (*node).(*ast.CallNode)
 		if callNode.Callee == nil {
-			// Ignore invalid call nodes
 			return
 		}
 		if f, ok := p.FuncMap[callNode.Callee.String()]; ok {
@@ -321,7 +347,13 @@ func buildFunctionMap(config *BuiltinConfig) map[string]*Function {
 			InitFunc:  config.GeoMatcher.LoadGeoIP,
 			PatchFunc: nil,
 			Func: func(params ...any) (any, error) {
-				return config.GeoMatcher.MatchGeoIp(params[0].(string), params[1].(string)), nil
+				// 参数防御：避免类型断言panic
+				s1, ok1 := params[0].(string)
+				s2, ok2 := params[1].(string)
+				if !ok1 || !ok2 {
+					return false, fmt.Errorf("geoip: invalid argument types")
+				}
+				return config.GeoMatcher.MatchGeoIp(s1, s2), nil
 			},
 			Types: []reflect.Type{reflect.TypeOf(config.GeoMatcher.MatchGeoIp)},
 		},
@@ -329,7 +361,12 @@ func buildFunctionMap(config *BuiltinConfig) map[string]*Function {
 			InitFunc:  config.GeoMatcher.LoadGeoSite,
 			PatchFunc: nil,
 			Func: func(params ...any) (any, error) {
-				return config.GeoMatcher.MatchGeoSite(params[0].(string), params[1].(string)), nil
+				s1, ok1 := params[0].(string)
+				s2, ok2 := params[1].(string)
+				if !ok1 || !ok2 {
+					return false, fmt.Errorf("geosite: invalid argument types")
+				}
+				return config.GeoMatcher.MatchGeoSite(s1, s2), nil
 			},
 			Types: []reflect.Type{reflect.TypeOf(config.GeoMatcher.MatchGeoSite)},
 		},
@@ -348,7 +385,12 @@ func buildFunctionMap(config *BuiltinConfig) map[string]*Function {
 				return nil
 			},
 			Func: func(params ...any) (any, error) {
-				return builtins.MatchCIDR(params[0].(string), params[1].(*net.IPNet)), nil
+				s1, ok1 := params[0].(string)
+				ipnet, ok2 := params[1].(*net.IPNet)
+				if !ok1 || !ok2 {
+					return false, fmt.Errorf("cidr: invalid argument types")
+				}
+				return builtins.MatchCIDR(s1, ipnet), nil
 			},
 			Types: []reflect.Type{reflect.TypeOf(builtins.MatchCIDR)},
 		},
@@ -357,7 +399,6 @@ func buildFunctionMap(config *BuiltinConfig) map[string]*Function {
 			PatchFunc: func(args *[]ast.Node) error {
 				var serverStr *ast.StringNode
 				if len(*args) > 1 {
-					// Has the optional server argument
 					var ok bool
 					serverStr, ok = (*args)[1].(*ast.StringNode)
 					if !ok {
@@ -380,9 +421,14 @@ func buildFunctionMap(config *BuiltinConfig) map[string]*Function {
 				return nil
 			},
 			Func: func(params ...any) (any, error) {
+				host, ok1 := params[0].(string)
+				resolver, ok2 := params[1].(*net.Resolver)
+				if !ok1 || !ok2 {
+					return nil, fmt.Errorf("lookup: invalid argument types")
+				}
 				ctx, cancel := context.WithTimeout(context.Background(), 4*time.Second)
 				defer cancel()
-				return params[1].(*net.Resolver).LookupHost(ctx, params[0].(string))
+				return resolver.LookupHost(ctx, host)
 			},
 			Types: []reflect.Type{
 				reflect.TypeOf((func(string, *net.Resolver) []string)(nil)),
