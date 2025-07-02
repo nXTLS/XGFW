@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/v2TLS/XGFW/operation"
+	"github.com/nXTLS/XGFW/operation"
 )
 
 var _ analyzer.TCPAnalyzer = (*FETAnalyzer)(nil)
