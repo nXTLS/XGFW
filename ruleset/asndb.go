@@ -9,6 +9,8 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+var GlobalASNDB = NewASNDB()
+
 // ASNDB defines a simple IP->ASN映射查询结构
 type ASNDB struct {
 	mu  sync.RWMutex
