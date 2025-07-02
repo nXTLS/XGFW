@@ -23,7 +23,7 @@ import (
 	"github.com/nXTLS/XGFW/ruleset/builtins"
 )
 
-var GlobalASNDB = NewASNDB()
+var globalASNDB = NewASNDB()
 
 // ExprRule is the external representation of an expression rule.
 type ExprRule struct {
