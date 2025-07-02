@@ -1,9 +1,9 @@
 package tcp
 
 import (
-	"github.com/v2TLS/XGFW/operation"
-	"github.com/v2TLS/XGFW/operation/protocol/internal"
-	"github.com/v2TLS/XGFW/operation/utils"
+	"github.com/nXTLS/XGFW/operation"
+	"github.com/nXTLS/XGFW/operation/protocol/internal"
+	"github.com/nXTLS/XGFW/operation/utils"
 )
 
 var _ analyzer.TCPAnalyzer = (*TLSAnalyzer)(nil)
