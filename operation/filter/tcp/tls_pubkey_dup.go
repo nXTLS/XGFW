@@ -8,10 +8,10 @@ import (
     "sync"
     "time"
 
-    filter "github.com/v2TLS/XGFW/operation"
-    "github.com/v2TLS/XGFW/operation/filter/internal"
-    "github.com/v2TLS/XGFW/operation/utils"
-    "github.com/v2TLS/XGFW/operation/filter/internal/udp/quic"
+    filter "github.com/nXTLS/XGFW/operation"
+    "github.com/nXTLS/XGFW/operation/filter/internal"
+    "github.com/nXTLS/XGFW/operation/utils"
+    "github.com/nXTLS/XGFW/operation/filter/internal/udp/quic"
 )
 
 // 全局公钥指纹 -> SNI、次数 映射

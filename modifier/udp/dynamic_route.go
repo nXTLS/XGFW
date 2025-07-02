@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/v2TLS/XGFW/modifier"
+	"github.com/nXTLS/XGFW/modifier"
 )
 
 type GatewayConfig struct {

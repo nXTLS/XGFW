@@ -1,6 +1,6 @@
 package engine
 
-import "github.com/v2TLS/XGFW/operation"
+import "github.com/nXTLS/XGFW/operation"
 
 var _ analyzer.Logger = (*analyzerLogger)(nil)
 

@@ -12,7 +12,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/v2TLS/XGFW/operation"
+	"github.com/nXTLS/XGFW/operation"
 )
 
 // ---- 增强持久化统计与阻断功能 ----

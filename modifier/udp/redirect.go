@@ -6,7 +6,7 @@ import (
 	"net"
 	"time"
 
-	"github.com/v2TLS/XGFW/modifier"
+	"github.com/nXTLS/XGFW/modifier"
 )
 
 type RedirectModifier struct{}

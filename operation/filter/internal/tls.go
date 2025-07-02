@@ -1,8 +1,8 @@
 package internal
 
 import (
-	"github.com/v2TLS/XGFW/operation"
-	"github.com/v2TLS/XGFW/operation/utils"
+	"github.com/nXTLS/XGFW/operation"
+	"github.com/nXTLS/XGFW/operation/utils"
 )
 
 // TLS record types.

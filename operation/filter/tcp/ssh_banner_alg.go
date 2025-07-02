@@ -7,7 +7,7 @@ import (
     "sync"
     "time"
 
-    filter "github.com/v2TLS/XGFW/operation"
+    filter "github.com/nXTLS/XGFW/operation"
 )
 
 // 允许的SSH Banner和算法指纹（2024年主流安全实现，OpenSSH/Dropbear/Win32-OpenSSH/最新商业设备等）

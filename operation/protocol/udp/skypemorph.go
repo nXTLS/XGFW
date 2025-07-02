@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/v2TLS/XGFW/operation"
+	"github.com/nXTLS/XGFW/operation"
 )
 
 const (

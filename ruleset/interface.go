@@ -5,9 +5,9 @@ import (
 	"net"
 	"strconv"
 
-	"github.com/v2TLS/XGFW/operation"
-	"github.com/v2TLS/XGFW/modifier"
-	"github.com/v2TLS/XGFW/ruleset/builtins/geo"
+	"github.com/nXTLS/XGFW/operation"
+	"github.com/nXTLS/XGFW/modifier"
+	"github.com/nXTLS/XGFW/ruleset/builtins/geo"
 )
 
 type Action int

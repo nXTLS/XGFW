@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/v2TLS/XGFW/operation"
+	"github.com/nXTLS/XGFW/operation"
 )
 
 func TestTlsStreamParsing_ClientHello(t *testing.T) {

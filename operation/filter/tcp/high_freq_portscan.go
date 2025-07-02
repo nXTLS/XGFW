@@ -5,7 +5,7 @@ import (
     "sync"
     "time"
 
-    filter "github.com/v2TLS/XGFW/operation"
+    filter "github.com/nXTLS/XGFW/operation"
 )
 
 // 全局IP端口扫描状态表：srcIP -> map[dstPort]lastSeen

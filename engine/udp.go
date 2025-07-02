@@ -5,10 +5,10 @@ import (
 	"net"
 	"sync"
 
-	"github.com/v2TLS/XGFW/operation"
-	"github.com/v2TLS/XGFW/io"
-	"github.com/v2TLS/XGFW/modifier"
-	"github.com/v2TLS/XGFW/ruleset"
+	"github.com/nXTLS/XGFW/operation"
+	"github.com/nXTLS/XGFW/io"
+	"github.com/nXTLS/XGFW/modifier"
+	"github.com/nXTLS/XGFW/ruleset"
 
 	"github.com/bwmarrin/snowflake"
 	"github.com/google/gopacket"

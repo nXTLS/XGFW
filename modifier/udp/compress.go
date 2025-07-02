@@ -8,7 +8,7 @@ import (
 	"github.com/pierrec/lz4/v4"
 	"github.com/klauspost/compress/zstd"
 
-	"github.com/v2TLS/XGFW/modifier"
+	"github.com/nXTLS/XGFW/modifier"
 )
 
 type CompressModifier struct{}

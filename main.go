@@ -1,6 +1,6 @@
 package main
 
-import "github.com/v2TLS/XGFW/cmd"
+import "github.com/nXTLS/XGFW/cmd"
 
 func main() {
 	cmd.Execute()

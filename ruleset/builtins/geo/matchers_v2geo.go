@@ -8,7 +8,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/v2TLS/XGFW/ruleset/builtins/geo/v2geo"
+	"github.com/nXTLS/XGFW/ruleset/builtins/geo/v2geo"
 )
 
 var _ hostMatcher = (*geoipMatcher)(nil)

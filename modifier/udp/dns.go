@@ -10,7 +10,7 @@ import (
 	"net"
 	"os"
 
-	"github.com/v2TLS/XGFW/modifier"
+	"github.com/nXTLS/XGFW/modifier"
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 )

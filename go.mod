@@ -1,4 +1,4 @@
-module github.com/v2TLS/XGFW
+module github.com/nXTLS/XGFW
 
 go 1.21
 

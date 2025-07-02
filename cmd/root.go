@@ -9,17 +9,17 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/v2TLS/XGFW/operation"
-	"github.com/v2TLS/XGFW/operation/protocol/tcp"
-	"github.com/v2TLS/XGFW/operation/protocol/udp"
-	filtertcp "github.com/v2TLS/XGFW/operation/filter/tcp"
-	filterudp "github.com/v2TLS/XGFW/operation/filter/udp"
-	"github.com/v2TLS/XGFW/engine"
-	"github.com/v2TLS/XGFW/io"
-	"github.com/v2TLS/XGFW/modifier"
-	modUDP "github.com/v2TLS/XGFW/modifier/udp"
-	"github.com/v2TLS/XGFW/ruleset"
-	"github.com/v2TLS/XGFW/ruleset/builtins/geo"
+	"github.com/nXTLS/XGFW/operation"
+	"github.com/nXTLS/XGFW/operation/protocol/tcp"
+	"github.com/nXTLS/XGFW/operation/protocol/udp"
+	filtertcp "github.com/nXTLS/XGFW/operation/filter/tcp"
+	filterudp "github.com/nXTLS/XGFW/operation/filter/udp"
+	"github.com/nXTLS/XGFW/engine"
+	"github.com/nXTLS/XGFW/io"
+	"github.com/nXTLS/XGFW/modifier"
+	modUDP "github.com/nXTLS/XGFW/modifier/udp"
+	"github.com/nXTLS/XGFW/ruleset"
+	"github.com/nXTLS/XGFW/ruleset/builtins/geo"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -34,7 +34,7 @@ const (
 █ █ ▀▀▀░▀░░░▀░▀
 `
 	appDesc    = "Open source network filtering and analysis software"
-	appAuthors = "Project Ether <https://github.com/uQUIC>"
+	appAuthors = "Project Ether <https://github.com/nXTLS>"
 
 	appLogLevelEnv  = "OPENGFW_LOG_LEVEL"
 	appLogFormatEnv = "OPENGFW_LOG_FORMAT"

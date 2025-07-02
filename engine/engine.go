@@ -4,8 +4,8 @@ import (
 	"context"
 	"runtime"
 
-	"github.com/v2TLS/XGFW/io"
-	"github.com/v2TLS/XGFW/ruleset"
+	"github.com/nXTLS/XGFW/io"
+	"github.com/nXTLS/XGFW/ruleset"
 
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
