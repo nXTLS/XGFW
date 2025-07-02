@@ -6,11 +6,11 @@ import (
 	"net"
 	"os"
 	"reflect"
+	"regexp"
 	"strings"
 	"time"
 
 	"github.com/expr-lang/expr/builtin"
-
 	"github.com/expr-lang/expr"
 	"github.com/expr-lang/expr/ast"
 	"github.com/expr-lang/expr/conf"
@@ -275,7 +275,6 @@ func analyzersToMap(ans []analyzer.Analyzer) map[string]analyzer.Analyzer {
 }
 
 // analyzersInit invokes custom analyzer init logics.
-// 可扩展：后续可支持更多Analyzer类型的Init
 func analyzersInit(a analyzer.Analyzer) error {
 	switch impl := a.(type) {
 	case *tcp.TorAnalyzer:
@@ -346,7 +345,6 @@ func buildFunctionMap(config *BuiltinConfig) map[string]*Function {
 			InitFunc:  config.GeoMatcher.LoadGeoIP,
 			PatchFunc: nil,
 			Func: func(params ...any) (any, error) {
-				// 参数防御：避免类型断言panic
 				s1, ok1 := params[0].(string)
 				s2, ok2 := params[1].(string)
 				if !ok1 || !ok2 {
@@ -433,5 +431,156 @@ func buildFunctionMap(config *BuiltinConfig) map[string]*Function {
 				reflect.TypeOf((func(string, *net.Resolver) []string)(nil)),
 			},
 		},
+		"asn": {
+			InitFunc: nil,
+			PatchFunc: nil,
+			Func: func(params ...any) (any, error) {
+				// 这里假设 config.GEOASNMatcher.MatchASN(ip, asn) bool
+				ipStr, ok1 := params[0].(string)
+				asn, ok2 := params[1].(int)
+				if !ok1 || !ok2 {
+					return false, fmt.Errorf("asn: invalid argument types")
+				}
+				if config.GEOASNMatcher == nil {
+					return false, fmt.Errorf("asn: GEOASNMatcher is nil")
+				}
+				return config.GEOASNMatcher.MatchASN(ipStr, asn), nil
+			},
+			Types: []reflect.Type{},
+		},
+		"port_range": {
+			InitFunc: nil,
+			PatchFunc: nil,
+			Func: func(params ...any) (any, error) {
+				port, ok1 := toInt(params[0])
+				min, ok2 := toInt(params[1])
+				max, ok3 := toInt(params[2])
+				if !ok1 || !ok2 || !ok3 {
+					return false, fmt.Errorf("port_range: invalid argument types")
+				}
+				return port >= min && port <= max, nil
+			},
+			Types: []reflect.Type{},
+		},
+		"protocol": {
+			InitFunc: nil,
+			PatchFunc: nil,
+			Func: func(params ...any) (any, error) {
+				// proto: string, want: string
+				proto, ok1 := params[0].(string)
+				want, ok2 := params[1].(string)
+				if !ok1 || !ok2 {
+					return false, fmt.Errorf("protocol: invalid argument types")
+				}
+				return strings.ToLower(proto) == strings.ToLower(want), nil
+			},
+			Types: []reflect.Type{},
+		},
+		"regex_match": {
+			InitFunc: nil,
+			PatchFunc: func(args *[]ast.Node) error {
+				// Compile regex pattern at compile time
+				if len(*args) != 2 {
+					return fmt.Errorf("regex_match: expects 2 arguments")
+				}
+				regexpNode, ok := (*args)[1].(*ast.StringNode)
+				if !ok {
+					return fmt.Errorf("regex_match: pattern must be string")
+				}
+				re, err := regexp.Compile(regexpNode.Value)
+				if err != nil {
+					return fmt.Errorf("regex_match: invalid regexp: %w", err)
+				}
+				(*args)[1] = &ast.ConstantNode{Value: re}
+				return nil
+			},
+			Func: func(params ...any) (any, error) {
+				str, ok1 := params[0].(string)
+				re, ok2 := params[1].(*regexp.Regexp)
+				if !ok1 || !ok2 {
+					return false, fmt.Errorf("regex_match: invalid argument types")
+				}
+				return re.MatchString(str), nil
+			},
+			Types: []reflect.Type{},
+		},
+		"suffix": {
+			InitFunc: nil,
+			PatchFunc: nil,
+			Func: func(params ...any) (any, error) {
+				str, ok1 := params[0].(string)
+				suffix, ok2 := params[1].(string)
+				if !ok1 || !ok2 {
+					return false, fmt.Errorf("suffix: invalid argument types")
+				}
+				return strings.HasSuffix(str, suffix), nil
+			},
+			Types: []reflect.Type{},
+		},
+		"prefix": {
+			InitFunc: nil,
+			PatchFunc: nil,
+			Func: func(params ...any) (any, error) {
+				str, ok1 := params[0].(string)
+				prefix, ok2 := params[1].(string)
+				if !ok1 || !ok2 {
+					return false, fmt.Errorf("prefix: invalid argument types")
+				}
+				return strings.HasPrefix(str, prefix), nil
+			},
+			Types: []reflect.Type{},
+		},
+		"contains": {
+			InitFunc: nil,
+			PatchFunc: nil,
+			Func: func(params ...any) (any, error) {
+				str, ok1 := params[0].(string)
+				sub, ok2 := params[1].(string)
+				if !ok1 || !ok2 {
+					return false, fmt.Errorf("contains: invalid argument types")
+				}
+				return strings.Contains(str, sub), nil
+			},
+			Types: []reflect.Type{},
+		},
+		"tld": {
+			InitFunc: nil,
+			PatchFunc: nil,
+			Func: func(params ...any) (any, error) {
+				host, ok1 := params[0].(string)
+				want, ok2 := params[1].(string)
+				if !ok1 || !ok2 {
+					return false, fmt.Errorf("tld: invalid argument types")
+				}
+				parts := strings.Split(host, ".")
+				if len(parts) < 2 {
+					return false, nil
+				}
+				tld := parts[len(parts)-1]
+				return strings.EqualFold(tld, want), nil
+			},
+			Types: []reflect.Type{},
+		},
 	}
+}
+
+// toInt tries to cast interface{} to int for flexible port type support
+func toInt(val any) (int, bool) {
+	switch v := val.(type) {
+	case int:
+		return v, true
+	case int32:
+		return int(v), true
+	case int64:
+		return int(v), true
+	case uint16:
+		return int(v), true
+	case uint32:
+		return int(v), true
+	case uint64:
+		return int(v), true
+	case float64:
+		return int(v), true
+	}
+	return 0, false
 }
