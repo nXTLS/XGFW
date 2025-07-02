@@ -6,7 +6,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/nXTLSv2TLS/XGFW/ruleset/builtins/geo/v2geo"
+	"github.com/nXTLS/XGFW/ruleset/builtins/geo/v2geo"
 )
 
 const (
