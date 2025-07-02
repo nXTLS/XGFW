@@ -290,6 +290,10 @@ func (c *cliConfig) Config() (*engine.Config, error) {
 }
 
 func runMain(cmd *cobra.Command, args []string) {
+	 // ------ ASNDB 加载，必须是第一步 ------
+        if err := ruleset.GlobalASNDB.LoadYAML("ruleset/data/asn_db.yaml"); err != nil {
+            logger.Fatal("failed to load ASN DB", zap.Error(err))
+        }
 	// Config
 	if err := viper.ReadInConfig(); err != nil {
 		logger.Fatal("failed to read config", zap.Error(err))
