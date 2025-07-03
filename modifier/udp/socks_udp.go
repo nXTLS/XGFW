@@ -36,13 +36,13 @@ func (m *Socks5UDPModifier) Process(data []byte) ([]byte, error) {
 	if m.InjectDstHost != "" || m.InjectDstPort != 0 {
 		newAddrField, newAtyp, err := buildSocks5UDPAddr(m.InjectDstHost, m.InjectDstPort)
 		if err == nil {
-			out := make([]byte, 0, 3+len(newAddrField)+len(payload))
+			out := make([]byte, 0, 3+len(newAddrField))
 			out = append(out, data[:3]...)
 			out = append(out, newAtyp)
 			out = append(out, newAddrField...)
-			payload = payload // 先不变
+			out = append(out, payload...) // 修正点
 			data = out
-			addrEnd = len(data)
+			addrEnd = len(out) - len(payload)
 		}
 	}
 	// 内容注入/替换
@@ -81,7 +81,7 @@ func parseSocks5UDPAddr(data []byte) (dstHost string, dstPort uint16, payload []
 	switch atyp {
 	case 0x01: // IPv4
 		if len(data) < p+4+2 {
-			return "", 0, nil, 0, errors.New("ipv4 too short")
+			return "", 0, nil, 0, errors.New("ipv4 too短")
 		}
 		ip := net.IP(data[p : p+4]).String()
 		port := binary.BigEndian.Uint16(data[p+4 : p+6])
@@ -89,11 +89,11 @@ func parseSocks5UDPAddr(data []byte) (dstHost string, dstPort uint16, payload []
 		return ip, port, data[addrEnd:], addrEnd, nil
 	case 0x03: // DOMAIN
 		if len(data) < p+1 {
-			return "", 0, nil, 0, errors.New("domain too short")
+			return "", 0, nil, 0, errors.New("domain too短")
 		}
 		l := int(data[p])
 		if len(data) < p+1+l+2 {
-			return "", 0, nil, 0, errors.New("domain+port too short")
+			return "", 0, nil, 0, errors.New("domain+port too短")
 		}
 		host := string(data[p+1 : p+1+l])
 		port := binary.BigEndian.Uint16(data[p+1+l : p+1+l+2])
@@ -101,7 +101,7 @@ func parseSocks5UDPAddr(data []byte) (dstHost string, dstPort uint16, payload []
 		return host, port, data[addrEnd:], addrEnd, nil
 	case 0x04: // IPv6
 		if len(data) < p+16+2 {
-			return "", 0, nil, 0, errors.New("ipv6 too short")
+			return "", 0, nil, 0, errors.New("ipv6 too短")
 		}
 		ip := net.IP(data[p : p+16]).String()
 		port := binary.BigEndian.Uint16(data[p+16 : p+18])
