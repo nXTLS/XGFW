@@ -18,6 +18,7 @@ import (
 	"github.com/nXTLS/XGFW/io"
 	"github.com/nXTLS/XGFW/modifier"
 	modUDP "github.com/nXTLS/XGFW/modifier/udp"
+	modTCP "github.com/nXTLS/XGFW/modifier/tcp"
 	"github.com/nXTLS/XGFW/ruleset"
 	"github.com/nXTLS/XGFW/ruleset/builtins/geo"
 
@@ -119,6 +120,7 @@ var analyzers = []analyzer.Analyzer{
 }
 
 var modifiers = []modifier.Modifier{
+	&modTCP.HTTPModifier{},
 	&modUDP.DNSModifier{},
 	&modUDP.CompressModifier{},
 	&modUDP.DynamicRouteModifier{},
