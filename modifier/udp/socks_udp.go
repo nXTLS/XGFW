@@ -9,30 +9,59 @@ import (
 	"github.com/nXTLS/XGFW/modifier"
 )
 
+// Socks5UDPModifier implements modifier.Modifier and modifier.UDPModifierInstance
 type Socks5UDPModifier struct {
-	FilterDstHost   string // 过滤目标主机（支持域名/IP/通配符），如"*.example.com"、"1.2.3.4"
-	FilterDstPort   uint16 // 过滤目标端口（0为不过滤）
-	Drop            bool   // 是否丢弃/阻断匹配数据包
-	InjectDstHost   string // 替换目标地址
-	InjectDstPort   uint16 // 替换目标端口
-	InjectPayload   []byte // 内容注入（替换payload）
-	AppendPayload   []byte // 追加内容到原始payload
+	FilterDstHost   string
+	FilterDstPort   uint16
+	Drop            bool
+	InjectDstHost   string
+	InjectDstPort   uint16
+	InjectPayload   []byte
+	AppendPayload   []byte
 }
 
+// --- modifier.Modifier接口实现 ---
+func (m *Socks5UDPModifier) Name() string {
+	return "socks5_udp"
+}
+func (m *Socks5UDPModifier) New(args map[string]interface{}) (modifier.Instance, error) {
+	inst := &Socks5UDPModifier{}
+	if v, ok := args["filter_dst_host"].(string); ok {
+		inst.FilterDstHost = v
+	}
+	if v, ok := args["filter_dst_port"].(float64); ok {
+		inst.FilterDstPort = uint16(v)
+	}
+	if v, ok := args["drop"].(bool); ok {
+		inst.Drop = v
+	}
+	if v, ok := args["inject_dst_host"].(string); ok {
+		inst.InjectDstHost = v
+	}
+	if v, ok := args["inject_dst_port"].(float64); ok {
+		inst.InjectDstPort = uint16(v)
+	}
+	if v, ok := args["inject_payload"].(string); ok {
+		inst.InjectPayload = []byte(v)
+	}
+	if v, ok := args["append_payload"].(string); ok {
+		inst.AppendPayload = []byte(v)
+	}
+	return inst, nil
+}
+
+// --- modifier.UDPModifierInstance接口实现 ---
 func (m *Socks5UDPModifier) Process(data []byte) ([]byte, error) {
-	// 只处理SOCKS5 UDP包（RFC1928）
 	if len(data) < 10 {
-		return data, nil // 非法包
+		return data, nil
 	}
 	addr, port, payload, addrEnd, err := parseSocks5UDPAddr(data)
 	if err != nil {
 		return data, nil
 	}
-	// 过滤/丢弃
 	if m.matchFilter(addr, port) && m.Drop {
 		return nil, &modifier.ErrInvalidPacket{Err: errors.New("dropped by socks5 udp modifier")}
 	}
-	// 目标地址注入
 	if m.InjectDstHost != "" || m.InjectDstPort != 0 {
 		newAddrField, newAtyp, err := buildSocks5UDPAddr(m.InjectDstHost, m.InjectDstPort)
 		if err == nil {
@@ -40,12 +69,11 @@ func (m *Socks5UDPModifier) Process(data []byte) ([]byte, error) {
 			out = append(out, data[:3]...)
 			out = append(out, newAtyp)
 			out = append(out, newAddrField...)
-			out = append(out, payload...) // 修正点
+			out = append(out, payload...)
 			data = out
 			addrEnd = len(out) - len(payload)
 		}
 	}
-	// 内容注入/替换
 	if len(m.InjectPayload) > 0 {
 		data = append(data[:addrEnd], m.InjectPayload...)
 	} else if len(m.AppendPayload) > 0 {
@@ -71,7 +99,6 @@ func (m *Socks5UDPModifier) matchFilter(dstHost string, port uint16) bool {
 	return m.FilterDstHost != "" || m.FilterDstPort != 0
 }
 
-// parseSocks5UDPAddr 解析SOCKS5 UDP地址端口与payload
 func parseSocks5UDPAddr(data []byte) (dstHost string, dstPort uint16, payload []byte, addrEnd int, err error) {
 	if len(data) < 10 {
 		return "", 0, nil, 0, errors.New("too short")
@@ -136,5 +163,6 @@ func buildSocks5UDPAddr(host string, port uint16) (addrField []byte, atyp byte, 
 	return b, 0x03, nil
 }
 
-// 保证实现UDPModifierInstance接口
+// 保证实现UDPModifierInstance和Modifier接口
 var _ modifier.UDPModifierInstance = (*Socks5UDPModifier)(nil)
+var _ modifier.Modifier = (*Socks5UDPModifier)(nil)
