@@ -24,7 +24,6 @@ func (m *Socks5UDPModifier) Process(data []byte) ([]byte, error) {
 	if len(data) < 10 {
 		return data, nil // 非法包
 	}
-	atyp := data[3]
 	addr, port, payload, addrEnd, err := parseSocks5UDPAddr(data)
 	if err != nil {
 		return data, nil
