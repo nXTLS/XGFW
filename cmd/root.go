@@ -123,7 +123,7 @@ var modifiers = []modifier.Modifier{
 	&modTCP.HTTPModifier{},
 	&modTCP.TLSModifier{},
 	&modTCP.SSHModifier{},
-	&modTCP.SOCKSModifier{},
+	&modTCP.SocksModifier{},
 	&modUDP.DNSModifier{},
 	&modUDP.CompressModifier{},
 	&modUDP.DynamicRouteModifier{},
