@@ -17,7 +17,7 @@ var supportedSSHVersions = []string{
 }
 
 // 支持的所有历史与现行 KEX 算法
-var allKexAlgos = []string{
+var defaultKexAlgos = []string{
 	"curve25519-sha256",
 	"curve25519-sha256@libssh.org",
 	"ecdh-sha2-nistp256",
@@ -43,7 +43,7 @@ var allKexAlgos = []string{
 }
 
 // 支持的所有历史与现行 HostKey 算法
-var allHostkeyAlgos = []string{
+var defaultHostkeyAlgos = []string{
 	"ssh-ed25519",
 	"ssh-ed25519-cert-v01@openssh.com",
 	"ssh-ed448",
@@ -72,7 +72,7 @@ var allHostkeyAlgos = []string{
 }
 
 // 支持的所有历史与现行 Cipher 算法
-var allCipherAlgos = []string{
+var defaultCipherAlgos = []string{
 	// Modern/Recommended
 	"chacha20-poly1305@openssh.com",
 	"aes128-ctr", "aes192-ctr", "aes256-ctr",
@@ -92,7 +92,7 @@ var allCipherAlgos = []string{
 }
 
 // 支持的所有历史与现行 MAC 算法
-var allMACAlgos = []string{
+var defaultMACAlgos = []string{
 	// Modern
 	"hmac-sha2-256", "hmac-sha2-512", "hmac-sha2-256-96", "hmac-sha2-512-96",
 	"hmac-sha1", "hmac-sha1-96",
@@ -105,7 +105,7 @@ var allMACAlgos = []string{
 }
 
 // 支持的所有历史与现行 Compression 算法
-var allCompressionAlgos = []string{
+var defaultCompressionAlgos = []string{
 	"none",
 	"zlib@openssh.com",
 	"zlib",
