@@ -1,7 +1,6 @@
 package tcp
 
 import (
-	"bytes"
 	"encoding/binary"
 	"errors"
 	"fmt"
