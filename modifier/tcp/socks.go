@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"io"
 	"net"
 	"strings"
@@ -11,7 +12,7 @@ import (
 	"github.com/nXTLS/XGFW/modifier"
 )
 
-// SocksModifier 支持SOCKS4/5、用户名密码认证、UDP ASSOCIATE等协议劫持与注入
+// SocksModifier 支持SOCKS4/5，用户名密码认证，UDP ASSOCIATE，异常容错，字段健壮处理
 type SocksModifier struct{}
 
 func (m *SocksModifier) Name() string { return "socks" }
@@ -108,16 +109,13 @@ func (i *socksModifierTCPInstance) handleSocks4(data []byte) ([]byte, error) {
 			copy(out[4:8], ip)
 		}
 	}
-	// 注入用户名
+	// 注入用户名（SOCKS4: USERID, 可能存在0x00结尾后还有domain）
 	if i.injectUsername != "" {
-		// 查找userid字段
-		nullIdx := bytes.IndexByte(out[8:], 0x00)
+		uidStart := 8
+		nullIdx := bytes.IndexByte(out[uidStart:], 0x00)
 		if nullIdx >= 0 {
-			// 替换userid
-			uidStart := 8
-			uidEnd := 8 + nullIdx
+			uidEnd := uidStart + nullIdx
 			newUser := []byte(i.injectUsername)
-			// 构造新包
 			modified := make([]byte, 0, len(out)-nullIdx+len(newUser))
 			modified = append(modified, out[:uidStart]...)
 			modified = append(modified, newUser...)
@@ -129,7 +127,7 @@ func (i *socksModifierTCPInstance) handleSocks4(data []byte) ([]byte, error) {
 	return out, nil
 }
 
-// 判断是否为SOCKS5用户名密码认证请求
+// 判断是否为SOCKS5用户名密码认证请求（RFC 1929）
 func isSocks5UserPassAuthRequest(data []byte) bool {
 	return len(data) > 2 && data[0] == 0x01 && int(data[1])+2 < len(data)
 }
@@ -150,11 +148,11 @@ func (i *socksModifierTCPInstance) handleSocks5UserPassAuth(data []byte) ([]byte
 			return data, nil
 		}
 		newUser := []byte(i.injectUsername)
-		if newUser == nil {
+		if len(newUser) == 0 {
 			newUser = data[2:unameEnd]
 		}
 		newPass := []byte(i.injectPassword)
-		if newPass == nil {
+		if len(newPass) == 0 {
 			newPass = data[passStart:passEnd]
 		}
 		modified := []byte{0x01, byte(len(newUser))}
@@ -184,54 +182,14 @@ func (i *socksModifierTCPInstance) handleSocks5(data []byte) ([]byte, error) {
 		addrType := data[3]
 		// UDP ASSOCIATE重定向
 		if data[1] == 0x03 && i.udpRedirectAddr != "" && i.udpRedirectPort != 0 {
-			switch addrType {
-			case 0x01:
-				ip := net.ParseIP(i.udpRedirectAddr).To4()
-				if ip != nil {
-					copy(out[4:8], ip)
-					binary.BigEndian.PutUint16(out[len(out)-2:], i.udpRedirectPort)
-				}
-			case 0x03:
-				addrLen := int(data[4])
-				if addrLen > 0 && 5+addrLen+2 <= len(out) {
-					newHost := []byte(i.udpRedirectAddr)
-					out[4] = byte(len(newHost))
-					copy(out[5:], newHost)
-					binary.BigEndian.PutUint16(out[5+len(newHost):], i.udpRedirectPort)
-					out = out[:5+len(newHost)+2]
-				}
-			case 0x04:
-				ip := net.ParseIP(i.udpRedirectAddr).To16()
-				if ip != nil {
-					copy(out[4:20], ip)
-					binary.BigEndian.PutUint16(out[len(out)-2:], i.udpRedirectPort)
-				}
+			if err := modifySocks5Addr(out, addrType, i.udpRedirectAddr, i.udpRedirectPort); err == nil {
+				return out, nil
 			}
 		}
 		// CONNECT/BIND重定向
 		if (data[1] == 0x01 || data[1] == 0x02) && i.redirectAddr != "" && i.redirectPort != 0 {
-			switch addrType {
-			case 0x01:
-				ip := net.ParseIP(i.redirectAddr).To4()
-				if ip != nil {
-					copy(out[4:8], ip)
-					binary.BigEndian.PutUint16(out[len(out)-2:], i.redirectPort)
-				}
-			case 0x03:
-				addrLen := int(data[4])
-				if addrLen > 0 && 5+addrLen+2 <= len(out) {
-					newHost := []byte(i.redirectAddr)
-					out[4] = byte(len(newHost))
-					copy(out[5:], newHost)
-					binary.BigEndian.PutUint16(out[5+len(newHost):], i.redirectPort)
-					out = out[:5+len(newHost)+2]
-				}
-			case 0x04:
-				ip := net.ParseIP(i.redirectAddr).To16()
-				if ip != nil {
-					copy(out[4:20], ip)
-					binary.BigEndian.PutUint16(out[len(out)-2:], i.redirectPort)
-				}
+			if err := modifySocks5Addr(out, addrType, i.redirectAddr, i.redirectPort); err == nil {
+				return out, nil
 			}
 		}
 		return out, nil
@@ -254,6 +212,49 @@ func (i *socksModifierTCPInstance) handleSocks5(data []byte) ([]byte, error) {
 		return resp, nil
 	}
 	return data, nil
+}
+
+// 修改SOCKS5地址字段（支持IPv4/IPv6/域名，安全健壮，自动修剪包长度）
+func modifySocks5Addr(out []byte, addrType byte, newAddr string, newPort uint16) error {
+	switch addrType {
+	case 0x01: // IPv4
+		if len(out) < 10 {
+			return errors.New("SOCKS5 IPv4 packet too short")
+		}
+		ip := net.ParseIP(newAddr).To4()
+		if ip == nil {
+			return fmt.Errorf("invalid IPv4: %s", newAddr)
+		}
+		copy(out[4:8], ip)
+		binary.BigEndian.PutUint16(out[8:10], newPort)
+	case 0x03: // 域名
+		if len(out) < 5 {
+			return errors.New("SOCKS5 domain packet too short")
+		}
+		addrLen := int(out[4])
+		if 5+addrLen+2 > len(out) {
+			return errors.New("SOCKS5 domain packet length error")
+		}
+		newHost := []byte(newAddr)
+		out[4] = byte(len(newHost))
+		copy(out[5:], newHost)
+		binary.BigEndian.PutUint16(out[5+len(newHost):], newPort)
+		// 修剪多余部分
+		out = out[:5+len(newHost)+2]
+	case 0x04: // IPv6
+		if len(out) < 22 {
+			return errors.New("SOCKS5 IPv6 packet too short")
+		}
+		ip := net.ParseIP(newAddr).To16()
+		if ip == nil {
+			return fmt.Errorf("invalid IPv6: %s", newAddr)
+		}
+		copy(out[4:20], ip)
+		binary.BigEndian.PutUint16(out[20:22], newPort)
+	default:
+		return fmt.Errorf("unknown SOCKS5 addrType: %d", addrType)
+	}
+	return nil
 }
 
 func contains(arr []byte, v byte) bool {
