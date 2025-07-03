@@ -128,6 +128,7 @@ var modifiers = []modifier.Modifier{
 	&modUDP.CompressModifier{},
 	&modUDP.DynamicRouteModifier{},
 	&modUDP.RedirectModifier{},
+	&modUDP.Socks5UDPModifier{},
 }
 
 func Execute() {
