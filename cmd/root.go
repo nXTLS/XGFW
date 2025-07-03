@@ -121,6 +121,7 @@ var analyzers = []analyzer.Analyzer{
 
 var modifiers = []modifier.Modifier{
 	&modTCP.HTTPModifier{},
+	&modTCP.TLSModifier{},
 	&modUDP.DNSModifier{},
 	&modUDP.CompressModifier{},
 	&modUDP.DynamicRouteModifier{},
